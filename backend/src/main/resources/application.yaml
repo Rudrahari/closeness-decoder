@@ -1,3 +1,44 @@
 spring:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
   application:
     name: Closeness-Decoder
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+back-blaze:
+  s3:
+    endpoint: ${B2_ENDPOINT}
+    region: ${B2_REGION}
+    bucket: ${B2_BUCKET}
+    access-key: ${B2_ACCESS_KEY}
+    secret-key: ${B2_SECRET_KEY}
+
+google:
+  client-id: ${GOOGLE_CLIENT_ID}
+
+logging:
+  level:
+    org.springframework.jdbc.datasource: DEBUG
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-ms: ${JWT_EXPIRATION_MS}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
