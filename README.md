@@ -6,7 +6,7 @@ Secure file sharing with presigned URLs.
 
 | Folder | Tech | Deploy |
 |--------|------|--------|
-| `backend/` | Spring Boot + Maven | Koyeb |
+| `backend/` | Spring Boot + Maven | Render&Kuberns |
 | `frontend/` | React + TypeScript | Vercel |
 | `worker/` | TypeScript (Cloudflare) | Cloudflare |
 
