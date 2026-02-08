@@ -1,100 +1,39 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-
-interface SharedLink {
-    id: string;
-    fileName: string;
-    shareUrl: string;
-    createdAt: Date;
-    expiresAt: Date;
-    views: number;
-}
+import FileUpload from '../components/FileUpload';
+import LinkCard, { type SharedLink } from '../components/LinkCard';
+import type { UploadResult } from '../api/files';
 
 const Dashboard = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [isUploading, setIsUploading] = useState(false);
     const [links, setLinks] = useState<SharedLink[]>([]);
     const [error, setError] = useState<string | null>(null);
-    const [copiedId, setCopiedId] = useState<string | null>(null);
 
     const handleLogout = () => {
         logout();
         navigate('/');
     };
 
-    const handleUpload = async (file: File) => {
-        if (file.size > 10 * 1024 * 1024) {
-            setError('File must be under 10MB');
-            return;
-        }
-
+    const handleUploadSuccess = (result: UploadResult, fileName: string) => {
+        const newLink: SharedLink = {
+            id: Date.now().toString(),
+            fileName,
+            shareUrl: result.shareUrl,
+            createdAt: new Date(),
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+            views: 0,
+        };
+        setLinks(prev => [newLink, ...prev]);
         setError(null);
-        setIsUploading(true);
-
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const token = localStorage.getItem('accessToken');
-            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-
-            const response = await fetch(`${baseUrl}/api/friend-url/upload`, {
-                method: 'POST',
-                headers: {
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error('Upload failed');
-            }
-
-            const data = await response.json();
-
-            const newLink: SharedLink = {
-                id: Date.now().toString(),
-                fileName: file.name,
-                shareUrl: `${window.location.origin}/friend-url/${data.friendCode}`,
-                createdAt: new Date(),
-                expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from backend
-                views: 0,
-            };
-
-            setLinks(prev => [newLink, ...prev]);
-        } catch {
-            setError('Upload failed. Try again.');
-        } finally {
-            setIsUploading(false);
-        }
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) handleUpload(file);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+    const handleUploadError = (errorMsg: string) => {
+        setError(errorMsg);
     };
 
-    const copyLink = async (url: string, id: string) => {
-        await navigator.clipboard.writeText(url);
-        setCopiedId(id);
-        setTimeout(() => setCopiedId(null), 2000);
-    };
-
-    const getTimeLeft = (expiresAt: Date) => {
-        const diff = new Date(expiresAt).getTime() - Date.now();
-        if (diff <= 0) return 'Expired';
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        if (hours > 0) return `${hours}h ${mins}m left`;
-        return `${mins}m left`;
-    };
-
-    // Calculate total stats
     const totalViews = links.reduce((sum, link) => sum + link.views, 0);
     const activeLinks = links.filter(link => new Date(link.expiresAt) > new Date()).length;
 
@@ -114,25 +53,13 @@ const Dashboard = () => {
                 <h1 style={styles.title}>Share a document</h1>
                 <p style={styles.subtitle}>Upload and get a shareable link (max 10MB)</p>
 
-                {/* Upload Button */}
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    onChange={handleFileChange}
-                    style={{ display: 'none' }}
-                    accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg"
+                <FileUpload
+                    onUploadSuccess={handleUploadSuccess}
+                    onUploadError={handleUploadError}
                 />
-                <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    style={styles.uploadBtn}
-                >
-                    {isUploading ? 'Uploading...' : 'Choose File'}
-                </button>
 
                 {error && <p style={styles.error}>{error}</p>}
 
-                {/* Analytics Summary */}
                 {links.length > 0 && (
                     <div style={styles.statsRow}>
                         <div style={styles.statBox}>
@@ -150,40 +77,11 @@ const Dashboard = () => {
                     </div>
                 )}
 
-                {/* Links List */}
                 {links.length > 0 && (
                     <div style={styles.linksSection}>
                         <h2 style={styles.linksTitle}>Your Links</h2>
                         {links.map(link => (
-                            <div key={link.id} style={styles.linkRow}>
-                                <div style={styles.linkInfo}>
-                                    <div style={styles.linkTop}>
-                                        <span style={styles.fileName}>{link.fileName}</span>
-                                        <span style={styles.viewCount}>{link.views} views</span>
-                                    </div>
-                                    <div style={styles.linkMeta}>
-                                        <span style={styles.url}>{link.shareUrl}</span>
-                                        <span style={styles.expiry}>{getTimeLeft(link.expiresAt)}</span>
-                                    </div>
-                                </div>
-                                <div style={styles.actions}>
-                                    <button
-                                        onClick={() => copyLink(link.shareUrl, link.id)}
-                                        style={styles.actionBtn}
-                                    >
-                                        {copiedId === link.id ? '✓' : 'Copy'}
-                                    </button>
-                                    <a
-                                        href={link.shareUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        style={styles.viewBtn}
-                                        title="View"
-                                    >
-                                        👁
-                                    </a>
-                                </div>
-                            </div>
+                            <LinkCard key={link.id} link={link} />
                         ))}
                     </div>
                 )}
@@ -195,7 +93,7 @@ const Dashboard = () => {
 const styles: Record<string, React.CSSProperties> = {
     page: {
         minHeight: '100vh',
-        background: '#fafafa',
+        background: 'linear-gradient(135deg, #0a0a0b 0%, #1a1a1b 100%)',
         fontFamily: 'system-ui, sans-serif',
     },
     header: {
@@ -203,13 +101,12 @@ const styles: Record<string, React.CSSProperties> = {
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '16px 24px',
-        borderBottom: '1px solid #eee',
-        background: '#fff',
+        borderBottom: '1px solid #2a2a2b',
     },
     logo: {
         fontSize: '18px',
         fontWeight: '600',
-        color: '#111',
+        color: '#f5f5f5',
     },
     userArea: {
         display: 'flex',
@@ -218,46 +115,40 @@ const styles: Record<string, React.CSSProperties> = {
     },
     email: {
         fontSize: '14px',
-        color: '#666',
+        color: '#888',
     },
     logoutBtn: {
         padding: '8px 16px',
-        background: 'none',
-        border: '1px solid #ddd',
+        background: 'transparent',
+        border: '1px solid #3a3a3b',
         borderRadius: '6px',
         cursor: 'pointer',
         fontSize: '14px',
+        color: '#888',
     },
     main: {
         maxWidth: '600px',
         margin: '60px auto',
         padding: '0 24px',
-        textAlign: 'center',
     },
     title: {
         fontSize: '28px',
         fontWeight: '600',
         margin: '0 0 8px 0',
-        color: '#111',
+        color: '#f5f5f5',
+        textAlign: 'center',
     },
     subtitle: {
         fontSize: '16px',
-        color: '#666',
+        color: '#888',
         margin: '0 0 32px 0',
-    },
-    uploadBtn: {
-        padding: '14px 32px',
-        fontSize: '16px',
-        background: '#111',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '8px',
-        cursor: 'pointer',
+        textAlign: 'center',
     },
     error: {
-        color: '#e53935',
+        color: '#ef4444',
         marginTop: '16px',
         fontSize: '14px',
+        textAlign: 'center',
     },
     statsRow: {
         display: 'flex',
@@ -268,8 +159,8 @@ const styles: Record<string, React.CSSProperties> = {
     statBox: {
         flex: 1,
         padding: '20px',
-        background: '#fff',
-        border: '1px solid #eee',
+        background: '#141415',
+        border: '1px solid #2a2a2b',
         borderRadius: '10px',
         textAlign: 'center',
     },
@@ -277,90 +168,20 @@ const styles: Record<string, React.CSSProperties> = {
         display: 'block',
         fontSize: '24px',
         fontWeight: '600',
-        color: '#111',
+        color: '#2dd4bf',
     },
     statLabel: {
-        display: 'block',
-        fontSize: '12px',
+        fontSize: '13px',
         color: '#888',
-        marginTop: '4px',
     },
     linksSection: {
-        textAlign: 'left',
+        marginTop: '24px',
     },
     linksTitle: {
-        fontSize: '16px',
+        fontSize: '18px',
         fontWeight: '600',
         margin: '0 0 16px 0',
-        color: '#111',
-    },
-    linkRow: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '16px',
-        background: '#fff',
-        border: '1px solid #eee',
-        borderRadius: '8px',
-        marginBottom: '8px',
-    },
-    linkInfo: {
-        flex: 1,
-        minWidth: 0,
-    },
-    linkTop: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '6px',
-    },
-    fileName: {
-        fontSize: '14px',
-        fontWeight: '500',
-        color: '#111',
-    },
-    viewCount: {
-        fontSize: '13px',
-        fontWeight: '500',
-        color: '#2563eb',
-    },
-    linkMeta: {
-        display: 'flex',
-        gap: '12px',
-        alignItems: 'center',
-    },
-    url: {
-        fontSize: '13px',
-        color: '#666',
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        flex: 1,
-    },
-    expiry: {
-        fontSize: '12px',
-        color: '#888',
-        whiteSpace: 'nowrap',
-    },
-    actions: {
-        display: 'flex',
-        gap: '8px',
-        marginLeft: '16px',
-    },
-    actionBtn: {
-        padding: '8px 16px',
-        fontSize: '13px',
-        background: '#f5f5f5',
-        border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer',
-    },
-    viewBtn: {
-        padding: '8px 12px',
-        fontSize: '16px',
-        background: '#f5f5f5',
-        borderRadius: '6px',
-        textDecoration: 'none',
+        color: '#f5f5f5',
     },
 };
 

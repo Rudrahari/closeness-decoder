@@ -30,30 +30,38 @@ const ViewFilePage = () => {
 
     useEffect(() => {
         const fetchFriendUrl = async () => {
+            console.log('ViewFilePage: uniqueId =', uniqueId);
             if (!uniqueId) {
+                console.log('ViewFilePage: No uniqueId, setting expired');
                 setStatus('expired');
                 return;
             }
 
             try {
                 const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+                console.log('ViewFilePage: Fetching from', `${baseUrl}/api/friend-url/${uniqueId}`);
                 const response = await fetch(`${baseUrl}/api/friend-url/${uniqueId}`);
+                console.log('ViewFilePage: Response status =', response.status);
 
                 if (!response.ok) {
+                    console.log('ViewFilePage: Response not OK, setting expired');
                     setStatus('expired');
                     return;
                 }
 
                 const data: FriendUrlResponse = await response.json();
+                console.log('ViewFilePage: Data =', data);
                 setPresignedUrl(data.friendUrl);
                 setStatus('success');
-            } catch {
+            } catch (err) {
+                console.error('ViewFilePage: Error =', err);
                 setStatus('expired');
             }
         };
 
         fetchFriendUrl();
     }, [uniqueId]);
+
 
     if (status === 'loading') {
         return (
