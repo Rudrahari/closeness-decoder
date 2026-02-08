@@ -2,7 +2,12 @@ package org.closeness.decoder.service.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import org.closeness.decoder.configuration.S3Properties;
+import org.closeness.decoder.dto.FriendLinkDto;
+import org.closeness.decoder.dto.FriendMessageDto;
+import org.closeness.decoder.model.FriendUrl;
+import org.closeness.decoder.repository.FriendUrlRepository;
 import org.closeness.decoder.service.S3Service;
+import org.closeness.decoder.utils.AuthUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -16,6 +21,7 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -25,11 +31,15 @@ public class S3ServiceImpl implements S3Service {
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
     private final S3Properties s3Properties;
+    private final FriendUrlRepository friendUrlRepository;
+    private final AuthUtils authUtils;
 
-    public S3ServiceImpl(S3Client s3Client, S3Presigner s3Presigner, S3Properties s3Properties) {
+    public S3ServiceImpl(S3Client s3Client, S3Presigner s3Presigner, S3Properties s3Properties, FriendUrlRepository friendUrlRepository, AuthUtils authUtils) {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
         this.s3Properties = s3Properties;
+        this.friendUrlRepository = friendUrlRepository;
+        this.authUtils = authUtils;
     }
 
     @Override
@@ -75,13 +85,45 @@ public class S3ServiceImpl implements S3Service {
         }
 
         String key = createS3FileKey(file);
+        ResponseEntity<?> response;
         try {
             uploadObject(file, key);
-            return getPreSignedUrl(key);
+            log.info("Uploaded");
+            response = getPreSignedUrl(key);
+            log.info("presigned url generated");
+            String sourceUrl = response.getBody().toString();
+            UUID userId = authUtils.getCurrentUserId();
+            UUID friendCode = UUID.randomUUID();
+            FriendUrl friendUrl =
+                    FriendUrl.builder().
+                            userId(userId).
+                            friendCode(friendCode).
+                            sourceUrl(sourceUrl).
+                            expiryTimeMinutes(60).
+                            isActive(true).
+                            build();
+            friendUrlRepository.save(friendUrl);
+            log.info("Friend url: {}", friendUrl);
+            FriendLinkDto friendLinkDto = new FriendLinkDto(friendCode);
+            return new ResponseEntity<>(friendLinkDto, HttpStatus.OK);
         } catch (Exception e) {
+            e.printStackTrace();
             log.error(e.getMessage());
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    @Override
+    public ResponseEntity<FriendMessageDto> getFriendUrl(UUID friendCode) {
+        Optional<FriendUrl> friendUrl = friendUrlRepository.findByFriendCode(friendCode);
+        if (friendUrl.isEmpty()) {
+            FriendMessageDto friendMessageDto =
+                    new FriendMessageDto("Failed", null);
+            return new ResponseEntity<>(friendMessageDto, HttpStatus.ACCEPTED);
+        }
+        FriendMessageDto friendMessageDto =
+                new FriendMessageDto("Success", friendUrl.get().getSourceUrl());
+        return new ResponseEntity<FriendMessageDto>(friendMessageDto, HttpStatus.OK);
     }
 
     public void uploadObject(MultipartFile file, String key) throws Exception {

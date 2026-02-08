@@ -1,10 +1,15 @@
 package org.closeness.decoder.controller;
 
+import lombok.Getter;
+import org.closeness.decoder.annotation.RateLimiter;
+import org.closeness.decoder.dto.FriendMessageDto;
 import org.closeness.decoder.service.S3Service;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -16,7 +21,7 @@ public class S3Controller {
         this.s3Service = s3Service;
     }
 
-    @GetMapping(path = "/friend-url/{key}")
+    @GetMapping(path = "/presigned-url/{key}")
     public ResponseEntity<?> generatePresignedUrl(
             @PathVariable("key") String key
     ) {
@@ -35,10 +40,18 @@ public class S3Controller {
         return s3Service.sendObject(file);
     }
 
-    @PostMapping(path = "/upload/friend-url")
+    @PostMapping(path = "/friend-url/upload")
     public ResponseEntity<?> sendObjectToS3CompatibleStorageAndGeneratePresignedUrl(
             @RequestParam("file") MultipartFile file
     ) {
         return s3Service.sendObjectAndGeneratePresignedUrl(file);
+    }
+
+    @GetMapping(path = "/friend-url/{friendCode}")
+    @RateLimiter(requests = 100, window = 60,key = "get-friend-url")
+    public ResponseEntity<FriendMessageDto> getFriendUrl(
+            @PathVariable("friendCode") UUID friendCode
+    ) {
+        return s3Service.getFriendUrl(friendCode);
     }
 }

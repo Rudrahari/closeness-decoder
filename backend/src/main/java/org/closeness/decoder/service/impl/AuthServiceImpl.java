@@ -6,6 +6,7 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.closeness.decoder.dto.AuthResponse;
+import org.closeness.decoder.dto.UserDto;
 import org.closeness.decoder.exception.AuthException;
 import org.closeness.decoder.model.User;
 import org.closeness.decoder.repository.UserRepository;
@@ -126,12 +127,8 @@ public class AuthServiceImpl implements AuthService {
     private AuthResponse buildAuthResponse(User user, String accessToken) {
         return AuthResponse.builder()
                 .accessToken(accessToken)
-                .user(AuthResponse.UserDto.builder()
-                        .id(user.getId().toString())
-                        .email(user.getEmail())
-                        .name(user.getUserName())
-                        .avatar(user.getProfilePicture())
-                        .build())
+                .user(UserDto.fromUser(user))
                 .build();
     }
 }
+

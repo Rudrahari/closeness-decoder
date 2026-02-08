@@ -1,15 +1,14 @@
 package org.closeness.decoder.dto;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 @Data
-@Builder
-@NoArgsConstructor
 @AllArgsConstructor
-public class AuthResponse {
-    private String accessToken;
-    private UserDto user;
+@NoArgsConstructor
+public class FriendLinkDto {
+    private UUID friendCode;
 }
