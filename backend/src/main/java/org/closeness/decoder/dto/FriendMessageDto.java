@@ -6,10 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@Builder
-@NoArgsConstructor
 @AllArgsConstructor
-public class AuthResponse {
-    private String accessToken;
-    private UserDto user;
+@NoArgsConstructor
+public class FriendMessageDto {
+    private String status;
+    private String friendUrl;
 }

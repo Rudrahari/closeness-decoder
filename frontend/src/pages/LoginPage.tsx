@@ -12,7 +12,6 @@ const LoginPage = () => {
     const [authMode, setAuthMode] = useState<AuthMode>('signin');
     const [error, setError] = useState<string | null>(null);
 
-    // Redirect to dashboard if already authenticated
     useEffect(() => {
         if (isAuthenticated && !isLoading) {
             navigate('/dashboard');
@@ -46,243 +45,242 @@ const LoginPage = () => {
     };
 
     return (
-        <div style={styles.container}>
-            <div style={styles.card}>
-                {/* Logo/Brand */}
-                <div style={styles.logoContainer}>
-                    <div style={styles.logo}>🔐</div>
-                    <h1 style={styles.title}>Closeness Decoder</h1>
-                </div>
-                <p style={styles.subtitle}>Share files securely with presigned URLs</p>
+        <div style={styles.page}>
+            {/* Header */}
+            <header style={styles.header}>
+                <span style={styles.logo}>Closeness</span>
+            </header>
 
-                {/* Auth Mode Toggle */}
-                <div style={styles.toggleContainer}>
-                    <button
-                        style={{
-                            ...styles.toggleButton,
-                            ...(authMode === 'signin' ? styles.toggleButtonActive : {}),
-                        }}
-                        onClick={() => setAuthMode('signin')}
-                    >
-                        Sign In
-                    </button>
-                    <button
-                        style={{
-                            ...styles.toggleButton,
-                            ...(authMode === 'signup' ? styles.toggleButtonActive : {}),
-                        }}
-                        onClick={() => setAuthMode('signup')}
-                    >
-                        Sign Up
-                    </button>
-                </div>
+            {/* Main Content */}
+            <main style={styles.main}>
+                <div style={styles.card}>
+                    <h1 style={styles.title}>
+                        {authMode === 'signin' ? 'Welcome back' : 'Get started'}
+                    </h1>
+                    <p style={styles.subtitle}>
+                        {authMode === 'signin'
+                            ? 'Sign in to share files securely'
+                            : 'Create an account to start sharing'}
+                    </p>
 
-                {/* Description */}
-                <p style={styles.modeDescription}>
-                    {authMode === 'signin'
-                        ? 'Welcome back! Sign in to access your files.'
-                        : 'Create a new account to get started.'}
-                </p>
-
-                {/* Error Message */}
-                {error && (
-                    <div style={styles.errorContainer}>
-                        <span style={styles.errorIcon}>⚠️</span>
-                        <span style={styles.errorText}>{error}</span>
+                    {/* Auth Mode Toggle */}
+                    <div style={styles.toggleRow}>
+                        <button
+                            style={{
+                                ...styles.toggleBtn,
+                                ...(authMode === 'signin' ? styles.toggleBtnActive : {}),
+                            }}
+                            onClick={() => setAuthMode('signin')}
+                        >
+                            Sign In
+                        </button>
+                        <button
+                            style={{
+                                ...styles.toggleBtn,
+                                ...(authMode === 'signup' ? styles.toggleBtnActive : {}),
+                            }}
+                            onClick={() => setAuthMode('signup')}
+                        >
+                            Sign Up
+                        </button>
                     </div>
-                )}
 
-                {/* Google Auth Button */}
-                {isLoading ? (
-                    <div style={styles.loadingContainer}>
-                        <div style={styles.spinner}></div>
-                        <p style={styles.loadingText}>Authenticating...</p>
-                    </div>
-                ) : (
-                    <div style={styles.buttonContainer}>
-                        <GoogleLogin
-                            onSuccess={handleGoogleSuccess}
-                            onError={handleGoogleError}
-                            theme="filled_blue"
-                            size="large"
-                            text={authMode === 'signin' ? 'signin_with' : 'signup_with'}
-                            shape="rectangular"
-                            width="300"
-                        />
-                    </div>
-                )}
-
-                {/* Footer */}
-                <p style={styles.footer}>
-                    {authMode === 'signin' ? (
-                        <>
-                            Don't have an account?{' '}
-                            <button style={styles.linkButton} onClick={() => setAuthMode('signup')}>
-                                Sign up
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            Already have an account?{' '}
-                            <button style={styles.linkButton} onClick={() => setAuthMode('signin')}>
-                                Sign in
-                            </button>
-                        </>
+                    {/* Error Message */}
+                    {error && (
+                        <div style={styles.errorBox}>
+                            <span>{error}</span>
+                        </div>
                     )}
-                </p>
-            </div>
 
-            {/* Background decoration */}
-            <div style={styles.bgDecoration1}></div>
-            <div style={styles.bgDecoration2}></div>
+                    {/* Google Auth Button */}
+                    {isLoading ? (
+                        <div style={styles.loadingBox}>
+                            <div style={styles.spinner}></div>
+                            <span style={styles.loadingText}>Authenticating...</span>
+                        </div>
+                    ) : (
+                        <div style={styles.googleBtnWrapper}>
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={handleGoogleError}
+                                theme="filled_black"
+                                size="large"
+                                text={authMode === 'signin' ? 'signin_with' : 'signup_with'}
+                                shape="rectangular"
+                                width="300"
+                            />
+                        </div>
+                    )}
+
+                    {/* Footer Link */}
+                    <p style={styles.footerText}>
+                        {authMode === 'signin' ? (
+                            <>
+                                Don't have an account?{' '}
+                                <button style={styles.linkBtn} onClick={() => setAuthMode('signup')}>
+                                    Sign up
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                Already have an account?{' '}
+                                <button style={styles.linkBtn} onClick={() => setAuthMode('signin')}>
+                                    Sign in
+                                </button>
+                            </>
+                        )}
+                    </p>
+                </div>
+
+                {/* Feature highlights */}
+                <div style={styles.features}>
+                    <div style={styles.feature}>
+                        <span style={styles.featureIcon}>🔒</span>
+                        <span style={styles.featureText}>Secure presigned URLs</span>
+                    </div>
+                    <div style={styles.feature}>
+                        <span style={styles.featureIcon}>⏱</span>
+                        <span style={styles.featureText}>Auto-expiring links</span>
+                    </div>
+                    <div style={styles.feature}>
+                        <span style={styles.featureIcon}>📊</span>
+                        <span style={styles.featureText}>View tracking</span>
+                    </div>
+                </div>
+            </main>
         </div>
     );
 };
 
-const styles: { [key: string]: React.CSSProperties } = {
-    container: {
+const styles: Record<string, React.CSSProperties> = {
+    page: {
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0a0a0b 0%, #1a1a1b 100%)',
+        fontFamily: 'system-ui, sans-serif',
+    },
+    header: {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-        position: 'relative',
-        overflow: 'hidden',
-    },
-    card: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        padding: '48px',
-        borderRadius: '20px',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
-        textAlign: 'center',
-        maxWidth: '420px',
-        width: '90%',
-        backdropFilter: 'blur(10px)',
-        zIndex: 10,
-    },
-    logoContainer: {
-        marginBottom: '8px',
+        padding: '16px 24px',
+        borderBottom: '1px solid #2a2a2b',
     },
     logo: {
-        fontSize: '48px',
-        marginBottom: '8px',
+        fontSize: '18px',
+        fontWeight: '600',
+        color: '#f5f5f5',
+    },
+    main: {
+        maxWidth: '400px',
+        margin: '60px auto',
+        padding: '0 24px',
+    },
+    card: {
+        background: '#141415',
+        border: '1px solid #2a2a2b',
+        borderRadius: '12px',
+        padding: '40px 32px',
+        textAlign: 'center',
     },
     title: {
-        margin: '0',
-        fontSize: '28px',
-        fontWeight: '700',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text',
+        fontSize: '24px',
+        fontWeight: '600',
+        margin: '0 0 8px 0',
+        color: '#f5f5f5',
     },
     subtitle: {
-        margin: '0 0 24px 0',
-        color: '#6b7280',
-        fontSize: '14px',
+        fontSize: '15px',
+        color: '#888',
+        margin: '0 0 28px 0',
     },
-    toggleContainer: {
+    toggleRow: {
         display: 'flex',
-        backgroundColor: '#f3f4f6',
-        borderRadius: '12px',
+        background: '#1a1a1b',
+        borderRadius: '8px',
         padding: '4px',
-        marginBottom: '20px',
-    },
-    toggleButton: {
-        flex: 1,
-        padding: '12px 24px',
-        border: 'none',
-        borderRadius: '10px',
-        backgroundColor: 'transparent',
-        color: '#6b7280',
-        fontSize: '14px',
-        fontWeight: '600',
-        cursor: 'pointer',
-        transition: 'all 0.3s ease',
-    },
-    toggleButtonActive: {
-        backgroundColor: '#ffffff',
-        color: '#1f2937',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-    },
-    modeDescription: {
-        margin: '0 0 24px 0',
-        color: '#6b7280',
-        fontSize: '14px',
-    },
-    errorContainer: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '8px',
-        padding: '12px 16px',
-        backgroundColor: '#fef2f2',
-        borderRadius: '10px',
-        marginBottom: '20px',
-        border: '1px solid #fecaca',
-    },
-    errorIcon: {
-        fontSize: '16px',
-    },
-    errorText: {
-        color: '#dc2626',
-        fontSize: '14px',
-    },
-    buttonContainer: {
-        display: 'flex',
-        justifyContent: 'center',
         marginBottom: '24px',
     },
-    loadingContainer: {
+    toggleBtn: {
+        flex: 1,
+        padding: '10px 16px',
+        border: 'none',
+        borderRadius: '6px',
+        background: 'transparent',
+        color: '#888',
+        fontSize: '14px',
+        fontWeight: '500',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+    },
+    toggleBtnActive: {
+        background: '#2a2a2b',
+        color: '#f5f5f5',
+    },
+    errorBox: {
+        padding: '12px 16px',
+        background: 'rgba(239, 68, 68, 0.1)',
+        border: '1px solid rgba(239, 68, 68, 0.3)',
+        borderRadius: '8px',
+        color: '#ef4444',
+        fontSize: '14px',
+        marginBottom: '20px',
+    },
+    loadingBox: {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         gap: '12px',
-        marginBottom: '24px',
+        padding: '20px 0',
     },
     spinner: {
-        width: '40px',
-        height: '40px',
-        border: '4px solid #f3f4f6',
-        borderTop: '4px solid #667eea',
+        width: '32px',
+        height: '32px',
+        border: '3px solid #2a2a2b',
+        borderTop: '3px solid #2dd4bf',
         borderRadius: '50%',
         animation: 'spin 1s linear infinite',
     },
     loadingText: {
-        color: '#6b7280',
+        color: '#888',
         fontSize: '14px',
     },
-    footer: {
-        margin: '0',
-        color: '#6b7280',
+    googleBtnWrapper: {
+        display: 'flex',
+        justifyContent: 'center',
+        marginBottom: '24px',
+    },
+    footerText: {
+        margin: 0,
+        color: '#666',
         fontSize: '14px',
     },
-    linkButton: {
+    linkBtn: {
         background: 'none',
         border: 'none',
-        color: '#667eea',
+        color: '#2dd4bf',
         fontWeight: '600',
         cursor: 'pointer',
         fontSize: '14px',
         textDecoration: 'underline',
     },
-    bgDecoration1: {
-        position: 'absolute',
-        top: '-20%',
-        right: '-10%',
-        width: '500px',
-        height: '500px',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(102, 126, 234, 0.3) 0%, transparent 70%)',
+    features: {
+        display: 'flex',
+        justifyContent: 'center',
+        gap: '24px',
+        marginTop: '32px',
+        flexWrap: 'wrap',
     },
-    bgDecoration2: {
-        position: 'absolute',
-        bottom: '-20%',
-        left: '-10%',
-        width: '400px',
-        height: '400px',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(118, 75, 162, 0.3) 0%, transparent 70%)',
+    feature: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+    },
+    featureIcon: {
+        fontSize: '16px',
+    },
+    featureText: {
+        fontSize: '13px',
+        color: '#666',
     },
 };
 
@@ -294,6 +292,9 @@ styleSheet.textContent = `
         100% { transform: rotate(360deg); }
     }
 `;
-document.head.appendChild(styleSheet);
+if (!document.querySelector('style[data-login-spinner]')) {
+    styleSheet.setAttribute('data-login-spinner', 'true');
+    document.head.appendChild(styleSheet);
+}
 
 export default LoginPage;
