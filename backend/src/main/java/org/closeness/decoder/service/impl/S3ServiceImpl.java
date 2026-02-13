@@ -6,6 +6,7 @@ import org.closeness.decoder.dto.FriendLinkDto;
 import org.closeness.decoder.dto.FriendMessageDto;
 import org.closeness.decoder.model.FriendUrl;
 import org.closeness.decoder.repository.FriendUrlRepository;
+import org.closeness.decoder.service.RedisCacheService;
 import org.closeness.decoder.service.S3Service;
 import org.closeness.decoder.utils.AuthUtils;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,13 +35,15 @@ public class S3ServiceImpl implements S3Service {
     private final S3Properties s3Properties;
     private final FriendUrlRepository friendUrlRepository;
     private final AuthUtils authUtils;
+    private final RedisCacheService redisCacheService;
 
-    public S3ServiceImpl(S3Client s3Client, S3Presigner s3Presigner, S3Properties s3Properties, FriendUrlRepository friendUrlRepository, AuthUtils authUtils) {
+    public S3ServiceImpl(S3Client s3Client, S3Presigner s3Presigner, S3Properties s3Properties, FriendUrlRepository friendUrlRepository, AuthUtils authUtils, RedisCacheService redisCacheService) {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
         this.s3Properties = s3Properties;
         this.friendUrlRepository = friendUrlRepository;
         this.authUtils = authUtils;
+        this.redisCacheService = redisCacheService;
     }
 
     @Override
@@ -88,22 +92,26 @@ public class S3ServiceImpl implements S3Service {
         ResponseEntity<?> response;
         try {
             uploadObject(file, key);
-            log.info("Uploaded");
+            log.info("File uploaded to S3");
             response = getPreSignedUrl(key);
-            log.info("presigned url generated");
+            LocalDateTime now = LocalDateTime.now();
+            log.info("Presigned url generated");
             String sourceUrl = response.getBody().toString();
             UUID userId = authUtils.getCurrentUserId();
-            UUID friendCode = UUID.randomUUID();
             FriendUrl friendUrl =
                     FriendUrl.builder().
                             userId(userId).
-                            friendCode(friendCode).
                             sourceUrl(sourceUrl).
+                            sourceKey(key).
                             expiryTimeMinutes(60).
+                            createdAt(now).
+                            expiresAt(now.plusMinutes(60)).
                             isActive(true).
                             build();
-            friendUrlRepository.save(friendUrl);
-            log.info("Friend url: {}", friendUrl);
+            friendUrl = friendUrlRepository.save(friendUrl);
+            UUID friendCode=friendUrl.getId();
+            redisCacheService.
+                    createFriendUrl(String.valueOf(friendCode),sourceUrl);
             FriendLinkDto friendLinkDto = new FriendLinkDto(friendCode);
             return new ResponseEntity<>(friendLinkDto, HttpStatus.OK);
         } catch (Exception e) {
@@ -115,7 +123,14 @@ public class S3ServiceImpl implements S3Service {
 
     @Override
     public ResponseEntity<FriendMessageDto> getFriendUrl(UUID friendCode) {
-        Optional<FriendUrl> friendUrl = friendUrlRepository.findByFriendCode(friendCode);
+        String sourceUrlFromCache
+                = redisCacheService.getFriendUrlFromCache(String.valueOf(friendCode));
+        if(sourceUrlFromCache!=null){
+            FriendMessageDto friendMessageDto =
+                    new FriendMessageDto("Success", sourceUrlFromCache);
+            return new ResponseEntity<FriendMessageDto>(friendMessageDto, HttpStatus.OK);
+        }
+        Optional<FriendUrl> friendUrl = friendUrlRepository.findById(friendCode);
         if (friendUrl.isEmpty()) {
             FriendMessageDto friendMessageDto =
                     new FriendMessageDto("Failed", null);

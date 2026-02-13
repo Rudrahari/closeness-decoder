@@ -4,28 +4,20 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
 public class RateLimiterService {
 
-    private final StringRedisTemplate redisTemplate;
+    private final RedisCacheService redisCacheService;
 
     public boolean isAllowed(String key, int maxRequests, int windowSeconds) {
-        String redisKey = "ratelimit:" + key;
-
-        Long count = redisTemplate.opsForValue().increment(redisKey);
-
-        if (count != null && count == 1) {
-            redisTemplate.expire(redisKey, Duration.ofSeconds(windowSeconds));
-        }
-
+        Long count = redisCacheService.createOrUpdateRateLimitKey(key, windowSeconds);
         return count != null && count <= maxRequests;
     }
 
     public long getTimeToReset(String key) {
-        Long ttl = redisTemplate.getExpire("ratelimit:" + key);
+        Long ttl = redisCacheService.getTimeToReset(key);
         return ttl != null ? ttl : 0;
     }
 }
