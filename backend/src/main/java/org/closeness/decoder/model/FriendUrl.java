@@ -27,17 +27,14 @@ public class FriendUrl {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "friend_code", nullable = false)
-    private UUID friendCode;
-
     @Column(name="source_url",nullable = false)
     private String sourceUrl;
 
+    @Column(name="source_key",nullable = false)
+    private String sourceKey;
+
     @Column(name = "expiry_time_minutes")
     private Integer expiryTimeMinutes;
-
-    @Column(name = "friend_secret_message")
-    private String friendSecretMessage;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -47,9 +44,4 @@ public class FriendUrl {
 
     @Column(name = "is_active")
     private Boolean isActive;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }
