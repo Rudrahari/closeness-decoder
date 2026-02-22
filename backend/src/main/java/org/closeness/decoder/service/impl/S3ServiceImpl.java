@@ -7,6 +7,7 @@ import org.closeness.decoder.dto.FriendMessageDto;
 import org.closeness.decoder.model.FriendUrl;
 import org.closeness.decoder.repository.FriendUrlRepository;
 import org.closeness.decoder.service.RedisCacheService;
+import org.closeness.decoder.service.KafkaProducer;
 import org.closeness.decoder.service.S3Service;
 import org.closeness.decoder.utils.AuthUtils;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -23,6 +25,7 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -36,11 +39,13 @@ public class S3ServiceImpl implements S3Service {
     private final FriendUrlRepository friendUrlRepository;
     private final AuthUtils authUtils;
     private final RedisCacheService redisCacheService;
+    private final KafkaProducer kafkaProducer;
 
-    public S3ServiceImpl(S3Client s3Client, S3Presigner s3Presigner, S3Properties s3Properties, FriendUrlRepository friendUrlRepository, AuthUtils authUtils, RedisCacheService redisCacheService) {
+    public S3ServiceImpl(S3Client s3Client, S3Presigner s3Presigner, S3Properties s3Properties, FriendUrlRepository friendUrlRepository, AuthUtils authUtils, RedisCacheService redisCacheService, KafkaProducer kafkaProducer) {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
         this.s3Properties = s3Properties;
+        this.kafkaProducer = kafkaProducer;
         this.friendUrlRepository = friendUrlRepository;
         this.authUtils = authUtils;
         this.redisCacheService = redisCacheService;
@@ -95,6 +100,8 @@ public class S3ServiceImpl implements S3Service {
             log.info("File uploaded to S3");
             response = getPreSignedUrl(key);
             LocalDateTime now = LocalDateTime.now();
+            long createdAt = System.currentTimeMillis();
+            long expiresAt = createdAt + (1 * 60 * 1000L);
             log.info("Presigned url generated");
             String sourceUrl = response.getBody().toString();
             UUID userId = authUtils.getCurrentUserId();
@@ -109,9 +116,12 @@ public class S3ServiceImpl implements S3Service {
                             isActive(true).
                             build();
             friendUrl = friendUrlRepository.save(friendUrl);
-            UUID friendCode=friendUrl.getId();
+            UUID friendCode = friendUrl.getId();
             redisCacheService.
-                    createFriendUrl(String.valueOf(friendCode),sourceUrl);
+                    createFriendUrl(String.valueOf(friendCode), sourceUrl);
+            kafkaProducer.
+                    publishUploadEvent(
+                            String.valueOf(friendCode), key, createdAt, expiresAt);
             FriendLinkDto friendLinkDto = new FriendLinkDto(friendCode);
             return new ResponseEntity<>(friendLinkDto, HttpStatus.OK);
         } catch (Exception e) {
@@ -123,22 +133,37 @@ public class S3ServiceImpl implements S3Service {
 
     @Override
     public ResponseEntity<FriendMessageDto> getFriendUrl(UUID friendCode) {
+        long clickedAt = LocalDateTime.now()
+                .toInstant(ZoneOffset.UTC)
+                .toEpochMilli();
         String sourceUrlFromCache
                 = redisCacheService.getFriendUrlFromCache(String.valueOf(friendCode));
-        if(sourceUrlFromCache!=null){
+        if (sourceUrlFromCache != null) {
+            kafkaProducer.
+                    publishClickEvent(String.valueOf(friendCode), clickedAt);
             FriendMessageDto friendMessageDto =
                     new FriendMessageDto("Success", sourceUrlFromCache);
             return new ResponseEntity<FriendMessageDto>(friendMessageDto, HttpStatus.OK);
         }
         Optional<FriendUrl> friendUrl = friendUrlRepository.findById(friendCode);
-        if (friendUrl.isEmpty()) {
+        if (friendUrl.isEmpty() || !friendUrl.get().getIsActive()) {
             FriendMessageDto friendMessageDto =
                     new FriendMessageDto("Failed", null);
             return new ResponseEntity<>(friendMessageDto, HttpStatus.ACCEPTED);
         }
+        kafkaProducer.
+                publishClickEvent(String.valueOf(friendCode), clickedAt);
         FriendMessageDto friendMessageDto =
                 new FriendMessageDto("Success", friendUrl.get().getSourceUrl());
         return new ResponseEntity<FriendMessageDto>(friendMessageDto, HttpStatus.OK);
+    }
+
+    @Override
+    public void deleteObject(String key) {
+        s3Client.deleteObject(DeleteObjectRequest.builder()
+                .bucket(s3Properties.getBucketName())
+                .key(key)
+                .build());
     }
 
     public void uploadObject(MultipartFile file, String key) throws Exception {
