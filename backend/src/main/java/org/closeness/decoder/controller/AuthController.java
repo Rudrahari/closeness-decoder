@@ -3,10 +3,10 @@ package org.closeness.decoder.controller;
 import lombok.RequiredArgsConstructor;
 import org.closeness.decoder.dto.AuthRequest;
 import org.closeness.decoder.dto.AuthResponse;
-import org.closeness.decoder.model.User;
+import org.closeness.decoder.dto.UserDto;
 import org.closeness.decoder.service.AuthService;
+import org.closeness.decoder.utils.AuthUtils;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,10 +16,12 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final AuthUtils authUtils;
 
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signUp(@RequestBody AuthRequest request) {
         AuthResponse response = authService.signUp(request.getCredential());
+
         return ResponseEntity.ok(response);
     }
 
@@ -30,25 +32,9 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<AuthResponse.UserDto> getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).build();
-        }
-
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof User user) {
-            AuthResponse.UserDto userDto = AuthResponse.UserDto.builder()
-                    .id(user.getId().toString())
-                    .email(user.getEmail())
-                    .name(user.getUserName())
-                    .avatar(user.getProfilePicture())
-                    .build();
-            return ResponseEntity.ok(userDto);
-        }
-
-        return ResponseEntity.status(401).build();
+    public ResponseEntity<UserDto> getCurrentUser() {
+        UserDto userDto = authUtils.getCurrentUserDto();
+        return ResponseEntity.ok(userDto);
     }
 
     @PostMapping("/logout")
@@ -57,3 +43,4 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 }
+

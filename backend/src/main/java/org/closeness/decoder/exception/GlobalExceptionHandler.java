@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -42,6 +43,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "An unexpected error occurred"));
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleRateLimitExceeded(RateLimitExceededException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "Too Many Requests");
+        body.put("message", ex.getMessage());
+        body.put("retryAfter", ex.getRetryAfterSeconds());
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
+                .body(body);
     }
 }
 

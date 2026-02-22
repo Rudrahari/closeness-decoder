@@ -2,8 +2,14 @@ package org.closeness.decoder.service.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import org.closeness.decoder.configuration.S3Properties;
+import org.closeness.decoder.dto.FriendLinkDto;
+import org.closeness.decoder.dto.FriendMessageDto;
+import org.closeness.decoder.model.FriendUrl;
+import org.closeness.decoder.repository.FriendUrlRepository;
+import org.closeness.decoder.service.RedisCacheService;
 import org.closeness.decoder.service.KafkaProducer;
 import org.closeness.decoder.service.S3Service;
+import org.closeness.decoder.utils.AuthUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -17,6 +23,8 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -26,13 +34,19 @@ public class S3ServiceImpl implements S3Service {
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
     private final S3Properties s3Properties;
+    private final FriendUrlRepository friendUrlRepository;
+    private final AuthUtils authUtils;
+    private final RedisCacheService redisCacheService;
     private final KafkaProducer kafkaProducer;
 
-    public S3ServiceImpl(S3Client s3Client, S3Presigner s3Presigner, S3Properties s3Properties, KafkaProducer kafkaProducer) {
+    public S3ServiceImpl(S3Client s3Client, S3Presigner s3Presigner, S3Properties s3Properties, FriendUrlRepository friendUrlRepository, AuthUtils authUtils, RedisCacheService redisCacheService, KafkaProducer kafkaProducer) {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
         this.s3Properties = s3Properties;
         this.kafkaProducer = kafkaProducer;
+        this.friendUrlRepository = friendUrlRepository;
+        this.authUtils = authUtils;
+        this.redisCacheService = redisCacheService;
     }
 
     @Override
@@ -78,13 +92,56 @@ public class S3ServiceImpl implements S3Service {
         }
 
         String key = createS3FileKey(file);
+        ResponseEntity<?> response;
         try {
             uploadObject(file, key);
-            return getPreSignedUrl(key);
+            log.info("File uploaded to S3");
+            response = getPreSignedUrl(key);
+            LocalDateTime now = LocalDateTime.now();
+            log.info("Presigned url generated");
+            String sourceUrl = response.getBody().toString();
+            UUID userId = authUtils.getCurrentUserId();
+            FriendUrl friendUrl =
+                    FriendUrl.builder().
+                            userId(userId).
+                            sourceUrl(sourceUrl).
+                            sourceKey(key).
+                            expiryTimeMinutes(60).
+                            createdAt(now).
+                            expiresAt(now.plusMinutes(60)).
+                            isActive(true).
+                            build();
+            friendUrl = friendUrlRepository.save(friendUrl);
+            UUID friendCode=friendUrl.getId();
+            redisCacheService.
+                    createFriendUrl(String.valueOf(friendCode),sourceUrl);
+            FriendLinkDto friendLinkDto = new FriendLinkDto(friendCode);
+            return new ResponseEntity<>(friendLinkDto, HttpStatus.OK);
         } catch (Exception e) {
+            e.printStackTrace();
             log.error(e.getMessage());
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    @Override
+    public ResponseEntity<FriendMessageDto> getFriendUrl(UUID friendCode) {
+        String sourceUrlFromCache
+                = redisCacheService.getFriendUrlFromCache(String.valueOf(friendCode));
+        if(sourceUrlFromCache!=null){
+            FriendMessageDto friendMessageDto =
+                    new FriendMessageDto("Success", sourceUrlFromCache);
+            return new ResponseEntity<FriendMessageDto>(friendMessageDto, HttpStatus.OK);
+        }
+        Optional<FriendUrl> friendUrl = friendUrlRepository.findById(friendCode);
+        if (friendUrl.isEmpty()) {
+            FriendMessageDto friendMessageDto =
+                    new FriendMessageDto("Failed", null);
+            return new ResponseEntity<>(friendMessageDto, HttpStatus.ACCEPTED);
+        }
+        FriendMessageDto friendMessageDto =
+                new FriendMessageDto("Success", friendUrl.get().getSourceUrl());
+        return new ResponseEntity<FriendMessageDto>(friendMessageDto, HttpStatus.OK);
     }
 
     public void uploadObject(MultipartFile file, String key) throws Exception {
