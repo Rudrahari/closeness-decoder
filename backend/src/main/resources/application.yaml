@@ -29,37 +29,6 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVER}
-    properties:
-      security.protocol: SASL_SSL
-      sasl.mechanism: PLAIN
-      sasl.jaas.config: >
-        org.apache.kafka.common.security.plain.PlainLoginModule required
-        username="${KAFKA_API_KEY}"
-        password="${KAFKA_API_SECRET}";
-    streams:
-      application-id: closeness-decoder-streams
-      properties:
-        default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
-        default.value.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
-        security.protocol: SASL_SSL
-        sasl.mechanism: PLAIN
-        sasl.jaas.config: >
-          org.apache.kafka.common.security.plain.PlainLoginModule required
-          username="${KAFKA_API_KEY}"
-          password="${KAFKA_API_SECRET}";
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-    consumer:
-      group-id: closeness-decoder-group
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: "org.closeness.decoder.dto,org.closeness.decoder.model"
-
 back-blaze:
   s3:
     endpoint: ${B2_ENDPOINT}
@@ -74,6 +43,10 @@ google:
 logging:
   level:
     org.springframework.jdbc.datasource: DEBUG
+    kafka: OFF
+    org:
+      apache:
+        kafka: OFF
 
 app:
   api-url: ${API_URL:http://localhost:8080}

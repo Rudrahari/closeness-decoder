@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum KafkaTopic {
 
-    CLICK_EVENT("friend-file-upload-events"),
+    CLICK_EVENT("friend-link-click-events"),
     UPLOAD_EVENT("friend-file-upload-events");
 
     private final String topicName;

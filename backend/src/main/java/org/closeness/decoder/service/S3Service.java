@@ -11,4 +11,5 @@ public interface S3Service {
     ResponseEntity<?> getPreSignedUrl(String key);
     ResponseEntity<?> sendObjectAndGeneratePresignedUrl(MultipartFile file);
     ResponseEntity<FriendMessageDto> getFriendUrl(UUID friendCode);
+    void deleteObject(String key);
 }

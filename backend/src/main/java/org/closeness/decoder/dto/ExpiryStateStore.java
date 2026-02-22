@@ -7,9 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class FriendUploadEvent {
+public class ExpiryStateStore {
     private String friendCode;
-    private String s3FileKey;
-    private long createdAt;
-    private long expiredAt;
+    private String storageKey;
 }

@@ -44,4 +44,8 @@ public class FriendUrl {
 
     @Column(name = "is_active")
     private Boolean isActive;
+
+    @Builder.Default
+    @Column(name="click_count")
+    private Long clickCount=0L;
 }
