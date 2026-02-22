@@ -2,6 +2,7 @@ package org.closeness.decoder.service.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import org.closeness.decoder.configuration.S3Properties;
+import org.closeness.decoder.service.KafkaProducer;
 import org.closeness.decoder.service.S3Service;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,11 +26,13 @@ public class S3ServiceImpl implements S3Service {
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
     private final S3Properties s3Properties;
+    private final KafkaProducer kafkaProducer;
 
-    public S3ServiceImpl(S3Client s3Client, S3Presigner s3Presigner, S3Properties s3Properties) {
+    public S3ServiceImpl(S3Client s3Client, S3Presigner s3Presigner, S3Properties s3Properties, KafkaProducer kafkaProducer) {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
         this.s3Properties = s3Properties;
+        this.kafkaProducer = kafkaProducer;
     }
 
     @Override
